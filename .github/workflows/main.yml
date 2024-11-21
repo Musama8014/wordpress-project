@@ -1,0 +1,46 @@
+name: WordPress CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Trigger the pipeline on push to the 'main' branch
+  pull_request:
+    branches:
+      - main  # Trigger the pipeline on pull requests targeting the 'main' branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Specify the environment for the runner (Ubuntu in this case)
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2  # This checks out your repository’s code
+
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2  # This sets up Docker Buildx for multi-platform builds
+
+    - name: Build Docker image
+      run: |
+        docker build -t wordpress-project .  # Build the Docker image using the Dockerfile in the repo
+
+    - name: Run Docker container
+      run: |
+        docker run -d -p 80:80 wordpress-project  # Run the container
+
+    - name: Test Docker container
+      run: |
+        curl http://localhost:80  # Simple test to ensure the WordPress container is running
+
+    - name: Push Docker image to Docker Hub (Optional)
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+        docker tag wordpress-project $DOCKER_USERNAME/wordpress-project:latest
+        docker push $DOCKER_USERNAME/wordpress-project:latest  # Push the image to Docker Hub (optional)
+
+    - name: Clean up Docker
+      run: |
+        docker stop $(docker ps -q)  # Stop the running containers
+        docker system prune -f  # Clean up unused Docker images and containers
